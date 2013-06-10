@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ViewFlipper xmlns:android="http://schemas.android.com/apk/res/android"
+	android:id="@+id/flipper"
+	android:layout_width="fill_parent"
+	android:layout_height="fill_parent"
+>
+	<include android:id="@+id/tela1"  layout="@layout/tela1" />
+	<include android:id="@+id/tela2"  layout="@layout/tela2" />
+</ViewFlipper>
