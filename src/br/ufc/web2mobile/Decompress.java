@@ -15,9 +15,16 @@ public class Decompress {
 	private String _zipFile; 
 	  private String _location; 
 	 
-	  public Decompress(String zipFile, String location) { 
+	  public Decompress(String zipFile, String location, String arquivo) { 
+		  
 	    _zipFile = zipFile; 
 	    _location = location; 
+	    
+	    File f = new File(_location + arquivo); 		
+	    f.mkdirs(); 
+	    
+	    f = new File(_location + arquivo + "/Audios"); 		
+	    f.mkdirs(); 
 	 
 	    _dirChecker(""); 
 	  } 

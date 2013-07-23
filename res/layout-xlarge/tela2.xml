@@ -5,32 +5,36 @@
     tools:context=".MainActivity" >
 
     <ImageView
-        android:id="@+id/imageBackground1"
+        android:id="@+id/imageBackground2"
         android:layout_width="fill_parent"
         android:layout_height="fill_parent" />
 
     <ImageView
-        android:id="@+id/legendBox1"
+        android:id="@+id/legendBox2"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignBottom="@+id/imageBackground1"
+        android:layout_alignBottom="@+id/imageBackground2"
         android:layout_alignParentLeft="true"
-        android:layout_alignParentRight="true" />
+        android:layout_alignParentRight="true" 
+        android:minHeight="250dp"/>
 
     <TextView
-        android:id="@+id/text1"
+        android:id="@+id/text2"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
-        android:layout_alignLeft="@+id/imageBackground1"
-        android:layout_alignTop="@+id/legendBox1"
+        android:layout_alignLeft="@+id/imageBackground2"
+        android:layout_alignTop="@+id/legendBox2"
         android:layout_marginTop="14dp"
+        android:layout_marginLeft="10dp"
+        android:layout_marginRight="10dp"
+        android:fadeScrollbars="false"
         android:maxLines="6"
         android:scrollbars="vertical"
         android:textColor="#000000"
-        android:textSize="15dp" />
+        android:textSize="25dp" />
 
     <ImageButton
-        android:id="@+id/btnAudio1"
+        android:id="@+id/btnAudio2"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentRight="true"

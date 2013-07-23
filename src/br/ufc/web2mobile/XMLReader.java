@@ -6,6 +6,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.jdom2.Document;
+import org.jdom2.Element;
+import org.jdom2.JDOMException;
+import org.jdom2.input.SAXBuilder;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlPullParserFactory;
@@ -18,14 +22,14 @@ import android.widget.Toast;
 
 public class XMLReader {
 
+
 	private List<String> imagens;
 	private List<String> textos;
 	private List<String> audios;
 
 	private int numTelas;
 
-	private static final String TAG = "XMLReader";
-	private static String pasta = "H1";
+	private String arquivo;
 
 	public XMLReader() {
 
@@ -61,7 +65,7 @@ public class XMLReader {
 		File[] contentsUnzipped = dirUnzipped.listFiles();
 
 		for (int i = 0; i < contentsUnzipped.length; i++) {
-			if (pasta.equalsIgnoreCase(contentsUnzipped[i].getName())) {
+			if (arquivo.equalsIgnoreCase(contentsUnzipped[i].getName())) {
 				temRecursos = true;
 			}
 		}
@@ -76,16 +80,14 @@ public class XMLReader {
 		}
 		// Folder contains files
 		else {
-			String zipFile = Environment.getExternalStorageDirectory()
-					+ "/web2mobile/" + pasta + ".zip";
-			String unzipLocation = Environment.getExternalStorageDirectory()
-					+ "/unzipped/";
+			String zipFile = Environment.getExternalStorageDirectory() + "/web2mobile/" + arquivo + ".zip";
+			String unzipLocation = Environment.getExternalStorageDirectory() + "/unzipped/";
 
 			if (!temRecursos) {
-				Decompress d = new Decompress(zipFile, unzipLocation);
+				Decompress d = new Decompress(zipFile, unzipLocation, arquivo);
 				d.unzip(context.getApplicationContext());
 				Toast toast = Toast.makeText(context.getApplicationContext(),
-						"Descompactando aqrquivos..", Toast.LENGTH_SHORT);
+						"Descompactando arquivos..", Toast.LENGTH_SHORT);
 				toast.show();
 			}
 			// ->deletar quadrinho.zip
@@ -95,86 +97,48 @@ public class XMLReader {
 		}
 	}
 
-	public void read(Context context) {
+	public void readDom(Context context) {
 
-		if (checkComic(context)) {
+		String string = new String();
+		
+		numTelas = 0;
 
-			try {
-				// Get the Android-specific compiled XML parser.
-				String string = new String();
+		SAXBuilder builder = new SAXBuilder();
+		File xmlFile = new File(Environment.getExternalStorageDirectory()
+				+ "/unzipped/" + arquivo + "/" + arquivo + ".xml");
 
-				numTelas = 0;
+		try {
+			Document document = (Document) builder.build(xmlFile);
+			Element rootNode = document.getRootElement();
+			List list = rootNode.getChildren("tela");
 
-				XmlPullParserFactory factory = XmlPullParserFactory
-						.newInstance();
-				XmlPullParser xpp = factory.newPullParser();
-				FileReader in = new FileReader(
-						Environment.getExternalStorageDirectory()
-								+ "/unzipped/" + pasta + "/definition.xml");
-				// ---------------------------
-				xpp.setInput(in);
+			for (int i = 0; i < list.size(); i++) {
 
-				while (xpp.getEventType() != XmlPullParser.END_DOCUMENT) {
+				Element node = (Element) list.get(i);
 
-					if (xpp.getEventType() == XmlPullParser.START_TAG) {
+				numTelas = Integer.parseInt(node.getAttributeValue("id"));
 
-						String tagName = xpp.getName();
+				imagens.add(Environment.getExternalStorageDirectory()
+						+ "/unzipped/" + arquivo + "/" + node.getChild("imagem").getAttributeValue("src"));
 
-						if (tagName.equals("quadrinho")) {
+				audios.add(Environment.getExternalStorageDirectory() + "/unzipped/" + arquivo + "/Audios/" + node.getChild("audio").getAttributeValue("src"));
 
-						} else if (tagName.equals("tela")) {
-							numTelas++;
-
-						} else if (tagName.equals("imagem")) {
-							string = xpp.getAttributeValue(null, "src");
-							imagens.add(Environment
-									.getExternalStorageDirectory()
-									+ "/unzipped/" + pasta + "/" + string);
-							Log.d("IMAGEM ADICIONADA", "Image path: " + string);
-
-						} else if (tagName.equals("audio")) {
-							string = xpp.getAttributeValue(null, "src");
-							audios.add(Environment
-									.getExternalStorageDirectory()
-									+ "/unzipped/" + pasta + "/Audios/" + string);
-							Log.d("AUDIO ADICIONADO", "Audio path: " + string);
-						} else if (tagName.equals("texto")) {
-							string = xpp.getAttributeValue(null,
-									"txt");
-							string = string.replaceAll("[*]", "\n");
-							textos.add(string);
-						}
-					} else if (xpp.getEventType() == XmlResourceParser.END_TAG) {
-
-					} else if (xpp.getEventType() == XmlResourceParser.TEXT) {
-						// String s1 = xpp.getText();
-					}
-					xpp.next();
-				}
-				// ((InputStreamReader) xpp).close();
+				string = node.getChild("texto").getAttributeValue("txt");
+				string = string.replaceAll("[*]", "\n");
+				textos.add(string);
+				//textos.add(node.getChild("texto").getAttributeValue("txt"));
+				
 				setNumTelas(numTelas);
 				Log.d("NUMERO DE TELAS", "Numero: " + getNumTelas());
-
-			} catch (XmlPullParserException xppe) {
-
-				Log.e(TAG,
-						"Failure of .getEventType or .next, probably bad file format");
-				xppe.toString();
-
-			} catch (IOException ioe) {
-
-				Log.e(TAG, "Unable to read resource file");
-				ioe.printStackTrace();
 			}
-		} else {
-			Toast toast = Toast
-					.makeText(
-							context.getApplicationContext(),
-							"O seu SD Card não está montado, por favor monte o seu SD Card através das opções do seu telefone",
-							Toast.LENGTH_LONG);
-			toast.show();
+
+		} catch (IOException io) {
+			System.out.println(io.getMessage());
+		} catch (JDOMException jdomex) {
+			System.out.println(jdomex.getMessage());
 		}
 	}
+
 
 	public List<String> getImagens() {
 		return imagens;
@@ -206,5 +170,13 @@ public class XMLReader {
 
 	public void setNumTelas(int numTelas) {
 		this.numTelas = numTelas;
+	}
+
+	public String getArquivo() {
+		return arquivo;
+	}
+
+	public void setArquivo(String arquivo) {
+		this.arquivo = arquivo;
 	}
 }

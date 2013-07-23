@@ -9,6 +9,8 @@ import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Bundle;
+import android.text.method.ScrollingMovementMethod;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MotionEvent;
 import android.view.View;
@@ -34,7 +36,7 @@ public class MainActivity extends Activity {
 	private ImageButton btn_audio1;
 	private ImageButton btn_audio2;
 	private boolean mute = false;
-	
+
 	private float initialX = 0;
 	private float initialY = 0;
 	private float deltaX = 0;
@@ -42,84 +44,95 @@ public class MainActivity extends Activity {
 
 	private int idTela = 0;
 
+	String arquivo;
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
+
 		setContentView(R.layout.activity_main);
 
+		Bundle parametros = getIntent().getExtras();
+
+		if (parametros != null && parametros.containsKey("ARQUIVO")) {
+			arquivo = (String) parametros.get("ARQUIVO");
+		}
+
 		xml = new XMLReader();
-		xml.read(getApplicationContext());
+		xml.setArquivo(arquivo);
 
-		ap = new AudioPlayer();
+		if (xml.checkComic(getApplicationContext())) {
 
-		flipper = (ViewFlipper) findViewById(R.id.flipper);
-		imagem = new ImageView(this);
-		texto = (TextView) findViewById(R.id.text1);
+			xml.readDom(getApplicationContext());
 
-		File file = new File(xml.getImagens().get(idTela));
-		if (file.exists()) {
-			Bitmap bitmapImage = BitmapFactory.decodeFile(file
-					.getAbsolutePath());
-			imagem = (ImageView) findViewById(R.id.imageBackground1);
-			imagem.setImageBitmap(bitmapImage);
+			ap = new AudioPlayer();
 
+			flipper = (ViewFlipper) findViewById(R.id.flipper);
+			imagem = new ImageView(this);
+			texto = (TextView) findViewById(R.id.text1);
+			texto.setMovementMethod(new ScrollingMovementMethod());
+
+			File file = new File(xml.getImagens().get(idTela));
+			if (file.exists()) {
+				Bitmap bitmapImage = BitmapFactory.decodeFile(file
+						.getAbsolutePath());
+				imagem = (ImageView) findViewById(R.id.imageBackground1);
+				imagem.setImageBitmap(bitmapImage);
+
+			} else {
+				// imagem = (ImageView) findViewById(R.id.imageView1);
+			}
+
+			ImageView i;
+			i = (ImageView) findViewById(R.id.legendBox1);
+			i.setBackgroundResource(R.drawable.dialog_box);
+			i = (ImageView) findViewById(R.id.legendBox2);
+			i.setBackgroundResource(R.drawable.dialog_box);
+
+			// botão de áudio da tela 1
+			btn_audio1 = (ImageButton) findViewById(R.id.btnAudio1);
+			btn_audio1.setBackgroundResource(R.drawable.btn_volume);
+			btn_audio1.setOnClickListener(new OnClickListener() {
+
+				public void onClick(View v) {
+					if (isMute()) {
+						btn_audio1.setBackgroundResource(R.drawable.btn_volume);
+						ap.unmute();
+						setMute(false);
+					} else {
+						btn_audio1.setBackgroundResource(R.drawable.btn_mute);
+						ap.mute();
+						setMute(true);
+					}
+
+				}
+			});
+			// botão de áudio da tela 2
+			btn_audio2 = (ImageButton) findViewById(R.id.btnAudio2);
+			btn_audio2.setBackgroundResource(R.drawable.btn_volume);
+			btn_audio2.setOnClickListener(new OnClickListener() {
+
+				public void onClick(View v) {
+					if (isMute()) {
+						btn_audio2.setBackgroundResource(R.drawable.btn_volume);
+						ap.unmute();
+						setMute(false);
+					} else {
+						btn_audio2.setBackgroundResource(R.drawable.btn_mute);
+						ap.mute();
+						setMute(true);
+					}
+
+				}
+			});
+
+			texto.setText(xml.getTextos().get(idTela));
+			ap.start(xml.getAudios().get(idTela));
 		} else {
-			// imagem = (ImageView) findViewById(R.id.imageView1);
+			// Toast toast = Toast.makeText(getApplicationContext(),
+			// "Não há recursos.", Toast.LENGTH_SHORT);
+			// toast.show();
 		}
-		
-		ImageView i;
-		Bitmap bm;
-		try {
-			bm = getBitmapFromAsset("dialog_box.png");
-			i = (ImageView)findViewById(R.id.legendBox1);
-			i.setImageBitmap(bm);
-			i = (ImageView)findViewById(R.id.legendBox2);
-			i.setImageBitmap(bm);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		
-		//botão de áudio da tela 1
-		btn_audio1 = (ImageButton)findViewById(R.id.btnAudio1);
-		btn_audio1.setBackgroundResource(R.drawable.btn_volume);
-		btn_audio1.setOnClickListener(new OnClickListener() {
-			
-			public void onClick(View v) {
-				if(isMute()){
-					btn_audio1.setBackgroundResource(R.drawable.btn_volume);				
-					ap.unmute();
-					setMute(false);
-				}
-				else{
-					btn_audio1.setBackgroundResource(R.drawable.btn_mute);					
-					ap.mute();
-					setMute(true);
-				}
-				
-			}
-		});
-		//botão de áudio da tela 2
-		btn_audio2 = (ImageButton)findViewById(R.id.btnAudio2);
-		btn_audio2.setBackgroundResource(R.drawable.btn_volume);
-		btn_audio2.setOnClickListener(new OnClickListener() {
-			
-			public void onClick(View v) {
-				if(isMute()){
-					btn_audio2.setBackgroundResource(R.drawable.btn_volume);				
-					ap.unmute();
-					setMute(false);
-				}
-				else{
-					btn_audio2.setBackgroundResource(R.drawable.btn_mute);					
-					ap.mute();
-					setMute(true);
-				}
-						
-			}
-		});
-		
-		texto.setText(xml.getTextos().get(idTela));
-		ap.start(xml.getAudios().get(idTela));
 
 	}
 
@@ -147,11 +160,13 @@ public class MainActivity extends Activity {
 					deltaY = event.getRawY() - initialY;
 
 					// swipped up
-					if (deltaY > 0) {
-						// make your object/character move right						
+					if (deltaX < -50) {
+						// make your object/character move right
+						Log.d("SWIPPED", "Direita " + deltaX);
 						proximaTela(getIdTela());
-					} else if (deltaY < 0) {
+					} else if (deltaX > 50) {
 						// make your object/character move left
+						Log.d("SWIPPED", "Esquerda " + deltaX);
 						telaAnterior(getIdTela());
 					}
 
@@ -169,20 +184,21 @@ public class MainActivity extends Activity {
 	public void proximaTela(int id) {
 
 		id++;
-		
+
 		if (id < xml.getNumTelas()) {
 			firstFlipperChild = !firstFlipperChild;
 			File file = new File(xml.getImagens().get(id));
 			if (file.exists()) {
 				Bitmap bitmapImage = BitmapFactory.decodeFile(file
 						.getAbsolutePath());
-				if(firstFlipperChild) {
+				if (firstFlipperChild) {
 					imagem = (ImageView) findViewById(R.id.imageBackground1);
 					texto = (TextView) findViewById(R.id.text1);
-				}	
-				else {
+					texto.setMovementMethod(new ScrollingMovementMethod());
+				} else {
 					imagem = (ImageView) findViewById(R.id.imageBackground2);
 					texto = (TextView) findViewById(R.id.text2);
+					texto.setMovementMethod(new ScrollingMovementMethod());
 				}
 				imagem.setImageBitmap(bitmapImage);
 
@@ -190,23 +206,23 @@ public class MainActivity extends Activity {
 				// imagem = (ImageView)
 				// findViewById(R.id.imageView1);
 			}
-			
+
 			ap.stop();
 			ap = new AudioPlayer();
-			
-			//verificar necessidade
-			if(isMute()) {
-				btn_audio1.setBackgroundResource(R.drawable.btn_mute);	
-				btn_audio2.setBackgroundResource(R.drawable.btn_mute);	
-				ap.mute();				
+
+			// verificar necessidade
+			if (isMute()) {
+				btn_audio1.setBackgroundResource(R.drawable.btn_mute);
+				btn_audio2.setBackgroundResource(R.drawable.btn_mute);
+				ap.mute();
 			}
-			
+
 			texto.setText(xml.getTextos().get(id));
 			ap.start(xml.getAudios().get(id));
 
 			setIdTela(id);
-			
-			//transição de tela
+
+			// transição de tela
 			flipper.setInAnimation(inFromRightAnimation());
 			flipper.setOutAnimation(outToLeftAnimation());
 			flipper.showNext();
@@ -216,24 +232,25 @@ public class MainActivity extends Activity {
 			toast.show();
 		}
 	}
-	
+
 	public void telaAnterior(int id) {
 
 		id--;
-		
+
 		if (id >= 0) {
 			firstFlipperChild = !firstFlipperChild;
 			File file = new File(xml.getImagens().get(id));
 			if (file.exists()) {
 				Bitmap bitmapImage = BitmapFactory.decodeFile(file
 						.getAbsolutePath());
-				if(firstFlipperChild) {
+				if (firstFlipperChild) {
 					imagem = (ImageView) findViewById(R.id.imageBackground1);
 					texto = (TextView) findViewById(R.id.text1);
-				}	
-				else {
+					texto.setMovementMethod(new ScrollingMovementMethod());
+				} else {
 					imagem = (ImageView) findViewById(R.id.imageBackground2);
 					texto = (TextView) findViewById(R.id.text2);
+					texto.setMovementMethod(new ScrollingMovementMethod());
 				}
 				imagem.setImageBitmap(bitmapImage);
 
@@ -241,23 +258,23 @@ public class MainActivity extends Activity {
 				// imagem = (ImageView)
 				// findViewById(R.id.imageView1);
 			}
-			
+
 			ap.stop();
 			ap = new AudioPlayer();
-			
-			//verificar necessidade
-			if(isMute()){
+
+			// verificar necessidade
+			if (isMute()) {
 				btn_audio1.setBackgroundResource(R.drawable.btn_mute);
 				btn_audio2.setBackgroundResource(R.drawable.btn_mute);
 				ap.mute();
 			}
-			
+
 			texto.setText(xml.getTextos().get(id));
 			ap.start(xml.getAudios().get(id));
 
 			setIdTela(id);
-			
-			//transição de tela
+
+			// transição de tela
 			flipper.setInAnimation(inFromLeftAnimation());
 			flipper.setOutAnimation(outToRightAnimation());
 			flipper.showNext();
@@ -267,14 +284,13 @@ public class MainActivity extends Activity {
 			toast.show();
 		}
 	}
-	
-	private Bitmap getBitmapFromAsset(String strName) throws IOException
-	{
-	    AssetManager assetManager = getAssets();
-	    InputStream istr = assetManager.open(strName);
-	    Bitmap bitmap = BitmapFactory.decodeStream(istr);
-	    return bitmap;
-	 }
+
+	private Bitmap getBitmapFromAsset(String strName) throws IOException {
+		AssetManager assetManager = getAssets();
+		InputStream istr = assetManager.open(strName);
+		Bitmap bitmap = BitmapFactory.decodeStream(istr);
+		return bitmap;
+	}
 
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
@@ -298,43 +314,68 @@ public class MainActivity extends Activity {
 	public void setMute(boolean mute) {
 		this.mute = mute;
 	}
+
+	@Override
+	public void onBackPressed() {
+		super.onBackPressed();
+		ap.stop();
+		this.finish();
+	}
+
+	@Override
+	protected void onDestroy() {
+		super.onDestroy();
+		ap.stop();
+		this.finish();
+	}
+
+	@Override
+	protected void onStop() {
+		super.onStop();
+		ap.stop();
+		this.finish();
+	}
 	
 	private Animation inFromRightAnimation() {
 
 		Animation inFromRight = new TranslateAnimation(
-				Animation.RELATIVE_TO_PARENT,  +1.0f, Animation.RELATIVE_TO_PARENT,  0.0f,
-				Animation.RELATIVE_TO_PARENT,  0.0f, Animation.RELATIVE_TO_PARENT,   0.0f
-		);
+				Animation.RELATIVE_TO_PARENT, +1.0f,
+				Animation.RELATIVE_TO_PARENT, 0.0f,
+				Animation.RELATIVE_TO_PARENT, 0.0f,
+				Animation.RELATIVE_TO_PARENT, 0.0f);
 		inFromRight.setDuration(500);
 		inFromRight.setInterpolator(new AccelerateInterpolator());
 		return inFromRight;
 	}
-	
+
 	private Animation outToLeftAnimation() {
 		Animation outtoLeft = new TranslateAnimation(
-				Animation.RELATIVE_TO_PARENT,  0.0f, Animation.RELATIVE_TO_PARENT,  -1.0f,
-				Animation.RELATIVE_TO_PARENT,  0.0f, Animation.RELATIVE_TO_PARENT,   0.0f
-		);
+				Animation.RELATIVE_TO_PARENT, 0.0f,
+				Animation.RELATIVE_TO_PARENT, -1.0f,
+				Animation.RELATIVE_TO_PARENT, 0.0f,
+				Animation.RELATIVE_TO_PARENT, 0.0f);
 		outtoLeft.setDuration(500);
 		outtoLeft.setInterpolator(new AccelerateInterpolator());
 		return outtoLeft;
-		}
-	
+	}
+
 	private Animation inFromLeftAnimation() {
 		Animation inFromLeft = new TranslateAnimation(
-				Animation.RELATIVE_TO_PARENT,  -1.0f, Animation.RELATIVE_TO_PARENT,  0.0f,
-				Animation.RELATIVE_TO_PARENT,  0.0f, Animation.RELATIVE_TO_PARENT,   0.0f
-		);
+				Animation.RELATIVE_TO_PARENT, -1.0f,
+				Animation.RELATIVE_TO_PARENT, 0.0f,
+				Animation.RELATIVE_TO_PARENT, 0.0f,
+				Animation.RELATIVE_TO_PARENT, 0.0f);
 		inFromLeft.setDuration(500);
 		inFromLeft.setInterpolator(new AccelerateInterpolator());
 		return inFromLeft;
 	}
-	
+
 	private Animation outToRightAnimation() {
 		Animation outtoRight = new TranslateAnimation(
-				Animation.RELATIVE_TO_PARENT,  0.0f, Animation.RELATIVE_TO_PARENT,  +1.0f,
-				Animation.RELATIVE_TO_PARENT,  0.0f, Animation.RELATIVE_TO_PARENT,   0.0f
-		);
+				Animation.RELATIVE_TO_PARENT, 0.0f,
+				Animation.RELATIVE_TO_PARENT, +1.0f,
+				Animation.RELATIVE_TO_PARENT, 0.0f,
+				Animation.RELATIVE_TO_PARENT, 0.0f);
 		outtoRight.setDuration(500);
 		outtoRight.setInterpolator(new AccelerateInterpolator());
 		return outtoRight;
